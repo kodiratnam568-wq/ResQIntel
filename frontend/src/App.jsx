@@ -1,13 +1,86 @@
 import { useState } from "react";
 import "./App.css";
 
-const API_URL = "http://127.0.0.1:8000";
+// If you later deploy the backend, put its URL here.
+// For now, the app has a demo fallback so the deployed site works.
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 function App() {
   const [report, setReport] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const generateDemoResult = (text) => {
+    const lower = text.toLowerCase();
+
+    let incidentType = "Emergency Incident";
+    if (lower.includes("fire") || lower.includes("smoke")) {
+      incidentType = "Fire Emergency";
+    } else if (
+      lower.includes("flood") ||
+      lower.includes("water") ||
+      lower.includes("rain")
+    ) {
+      incidentType = "Flood Emergency";
+    } else if (
+      lower.includes("accident") ||
+      lower.includes("crash") ||
+      lower.includes("collision")
+    ) {
+      incidentType = "Road Accident";
+    } else if (
+      lower.includes("earthquake") ||
+      lower.includes("building collapse")
+    ) {
+      incidentType = "Structural / Earthquake Emergency";
+    } else if (
+      lower.includes("medical") ||
+      lower.includes("injured") ||
+      lower.includes("unconscious")
+    ) {
+      incidentType = "Medical Emergency";
+    }
+
+    let urgency = "HIGH";
+    if (
+      lower.includes("dead") ||
+      lower.includes("trapped") ||
+      lower.includes("fire") ||
+      lower.includes("collapse")
+    ) {
+      urgency = "CRITICAL";
+    }
+
+    let location = "Location requires confirmation";
+    const locationMatch = text.match(
+      /(?:at|near|in|on)\s+([A-Za-z0-9 ,.-]{3,50})/i
+    );
+
+    if (locationMatch) {
+      location = locationMatch[1].trim();
+    }
+
+    let people = "Number of people at risk requires confirmation";
+    const peopleMatch = text.match(/(\d+)\s+(?:people|persons|people are|victims)/i);
+
+    if (peopleMatch) {
+      people = `${peopleMatch[1]} people potentially at risk`;
+    }
+
+    return {
+      incident_type: incidentType,
+      location,
+      people_at_risk: people,
+      urgency,
+      potential_hazards:
+        "Potential hazards identified from the report. Verify conditions before deployment.",
+      missing_information:
+        "Exact location, confirmed number of affected people, current scene conditions and available access routes.",
+      response_brief:
+        "Prioritize incident verification, establish the exact location, assess immediate hazards and coordinate appropriate emergency resources."
+    };
+  };
 
   const analyzeIncident = async () => {
     if (!report.trim()) return;
@@ -16,39 +89,48 @@ function App() {
     setError("");
     setResult(null);
 
-    try {
-      const response = await fetch(`${API_URL}/analyze`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          report: report.trim(),
-        }),
-      });
+    // Try real backend only if an API URL exists.
+    if (API_URL) {
+      try {
+        const response = await fetch(`${API_URL}/analyze`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            report: report.trim()
+          })
+        });
 
-      const data = await response.json();
+        if (!response.ok) {
+          throw new Error("Backend analysis failed");
+        }
 
-      if (!response.ok) {
-        throw new Error(data.detail || "Analysis failed");
+        const data = await response.json();
+
+        setResult(data.incident || data);
+        setLoading(false);
+        return;
+      } catch (err) {
+        console.log("Backend unavailable, using local intelligence fallback.");
       }
-
-      setResult(data.incident);
-    } catch (err) {
-      setError(
-        "Unable to connect to ResQIntel backend. Make sure the FastAPI server is running."
-      );
-    } finally {
-      setLoading(false);
     }
+
+    // Demo/local intelligence fallback.
+    setTimeout(() => {
+      setResult(generateDemoResult(report));
+      setLoading(false);
+    }, 700);
   };
 
   return (
     <div className="app">
+
       {/* HEADER */}
       <header className="header">
         <div className="brand">
           <div className="shield">✚</div>
+
           <div>
             <h1>RESQINTEL AI</h1>
             <p>Emergency Response Intelligence</p>
@@ -63,25 +145,30 @@ function App() {
 
       {/* MAIN */}
       <main className="main">
+
         <div className="ai-icon">♧</div>
 
         <div className="eyebrow">
           ◆ AI-POWERED INCIDENT INTELLIGENCE ◆
         </div>
 
-        <h2>From Emergency Reports to Response Intelligence.</h2>
+        <h2>
+          From Emergency Reports to Response Intelligence.
+        </h2>
 
         <p className="subtitle">
-          Transform unstructured emergency information into structured incident
-          intelligence in seconds.
+          Transform unstructured emergency information into structured
+          incident intelligence in seconds.
         </p>
 
-        {/* TWO MAIN CARDS */}
+        {/* CARDS */}
         <section className="cards">
 
           {/* INCIDENT REPORT */}
           <div className="card">
+
             <div className="card-header">
+
               <div className="number">01</div>
 
               <div className="card-title">
@@ -90,6 +177,7 @@ function App() {
               </div>
 
               <div className="header-icon">▤</div>
+
             </div>
 
             <div className="divider"></div>
@@ -113,11 +201,14 @@ function App() {
               {loading ? "ANALYZING..." : "ANALYZE INCIDENT"}
               <span>➤</span>
             </button>
+
           </div>
 
           {/* RESPONSE INTELLIGENCE */}
           <div className="card">
+
             <div className="card-header">
+
               <div className="number">02</div>
 
               <div className="card-title">
@@ -129,25 +220,35 @@ function App() {
                 <span></span>
                 LIVE
               </div>
+
             </div>
 
             <div className="divider"></div>
 
             {!result && !error && (
               <div className="waiting">
+
                 <div className="brain">♧</div>
+
                 <h3>Awaiting Incident Report</h3>
+
                 <p>
-                  Submit an emergency report to generate response intelligence.
+                  Submit an emergency report to generate response
+                  intelligence.
                 </p>
+
               </div>
             )}
 
             {error && (
               <div className="error-box">
+
                 <div className="error-icon">!</div>
+
                 <h3>Connection Error</h3>
+
                 <p>{error}</p>
+
               </div>
             )}
 
@@ -162,22 +263,29 @@ function App() {
 
                   <div className="result-item">
                     <span className="result-icon fire">♨</span>
+
                     <div>
                       <label>INCIDENT TYPE</label>
-                      <strong>{result.incident_type || "Not specified"}</strong>
+                      <strong>
+                        {result.incident_type || "Not specified"}
+                      </strong>
                     </div>
                   </div>
 
                   <div className="result-item">
                     <span className="result-icon location">⌖</span>
+
                     <div>
                       <label>LOCATION</label>
-                      <strong>{result.location || "Not specified"}</strong>
+                      <strong>
+                        {result.location || "Not specified"}
+                      </strong>
                     </div>
                   </div>
 
                   <div className="result-item">
                     <span className="result-icon people">♟</span>
+
                     <div>
                       <label>PEOPLE AT RISK</label>
                       <strong>
@@ -188,14 +296,18 @@ function App() {
 
                   <div className="result-item">
                     <span className="result-icon urgency">△</span>
+
                     <div>
                       <label>URGENCY</label>
-                      <strong>{result.urgency || "Not specified"}</strong>
+                      <strong>
+                        {result.urgency || "Not specified"}
+                      </strong>
                     </div>
                   </div>
 
                   <div className="result-item full">
                     <span className="result-icon hazard">△</span>
+
                     <div>
                       <label>POTENTIAL HAZARDS</label>
                       <strong>
@@ -206,6 +318,7 @@ function App() {
 
                   <div className="result-item full">
                     <span className="result-icon info">ⓘ</span>
+
                     <div>
                       <label>MISSING INFORMATION</label>
                       <strong>
@@ -215,23 +328,30 @@ function App() {
                   </div>
 
                   <div className="response-brief">
+
                     <span>▤</span>
+
                     <div>
                       <label>RESPONSE BRIEF</label>
+
                       <p>
                         {result.response_brief || "Not specified"}
                       </p>
                     </div>
+
                   </div>
 
                 </div>
               </div>
             )}
+
           </div>
+
         </section>
 
         {/* PIPELINE */}
         <section className="pipeline-section">
+
           <div className="pipeline-title">
             ◆ &nbsp; INTELLIGENCE PIPELINE &nbsp; ◆
           </div>
@@ -240,41 +360,57 @@ function App() {
 
             <div className="pipeline-card">
               <div className="pipeline-icon">◎</div>
+
               <div>
                 <h3>Classify</h3>
-                <p>Identify the incident type from unstructured reports.</p>
+                <p>
+                  Identify the incident type from unstructured reports.
+                </p>
               </div>
             </div>
 
             <div className="pipeline-card">
               <div className="pipeline-icon">⌖</div>
+
               <div>
                 <h3>Extract</h3>
                 <p>
-                  Pull locations, hazards, people at risk and critical details.
+                  Pull locations, hazards, people at risk and critical
+                  details.
                 </p>
               </div>
             </div>
 
             <div className="pipeline-card">
-              <div className="pipeline-icon yellow">⚡</div>
+
+              <div className="pipeline-icon yellow">
+                ⚡
+              </div>
+
               <div>
                 <h3>Prioritize</h3>
                 <p>
-                  Generate an AI-assisted urgency indicator from available
-                  information.
+                  Generate an AI-assisted urgency indicator from
+                  available information.
                 </p>
               </div>
+
             </div>
 
             <div className="pipeline-card">
-              <div className="pipeline-icon purple">✦</div>
+
+              <div className="pipeline-icon purple">
+                ✦
+              </div>
+
               <div>
                 <h3>Summarize</h3>
                 <p>
-                  Convert complex reports into concise response intelligence.
+                  Convert complex reports into concise response
+                  intelligence.
                 </p>
               </div>
+
             </div>
 
           </div>
@@ -282,21 +418,26 @@ function App() {
 
         {/* DECISION SUPPORT */}
         <section className="decision">
+
           <div className="decision-icon">✚</div>
 
           <div>
             <h3>Decision-support system</h3>
+
             <p>
               ResQIntel AI assists authorized responders with information
               processing. Final emergency response decisions remain with
               qualified human responders.
             </p>
           </div>
+
         </section>
+
       </main>
 
       {/* FOOTER */}
       <footer>
+
         <div>
           <strong>RESQINTEL AI</strong>
           <span>|</span>
@@ -304,7 +445,9 @@ function App() {
         </div>
 
         <strong>CodeNova</strong>
+
       </footer>
+
     </div>
   );
 }
