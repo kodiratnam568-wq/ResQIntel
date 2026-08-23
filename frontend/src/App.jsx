@@ -1,132 +1,63 @@
 import { useState } from "react";
 import "./App.css";
 
-// If you later deploy the backend, put its URL here.
-// For now, the app has a demo fallback so the deployed site works.
-const API_URL = import.meta.env.VITE_API_URL || "";
-
 function App() {
   const [report, setReport] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
-  const generateDemoResult = (text) => {
-    const lower = text.toLowerCase();
-
-    let incidentType = "Emergency Incident";
-    if (lower.includes("fire") || lower.includes("smoke")) {
-      incidentType = "Fire Emergency";
-    } else if (
-      lower.includes("flood") ||
-      lower.includes("water") ||
-      lower.includes("rain")
-    ) {
-      incidentType = "Flood Emergency";
-    } else if (
-      lower.includes("accident") ||
-      lower.includes("crash") ||
-      lower.includes("collision")
-    ) {
-      incidentType = "Road Accident";
-    } else if (
-      lower.includes("earthquake") ||
-      lower.includes("building collapse")
-    ) {
-      incidentType = "Structural / Earthquake Emergency";
-    } else if (
-      lower.includes("medical") ||
-      lower.includes("injured") ||
-      lower.includes("unconscious")
-    ) {
-      incidentType = "Medical Emergency";
-    }
-
-    let urgency = "HIGH";
-    if (
-      lower.includes("dead") ||
-      lower.includes("trapped") ||
-      lower.includes("fire") ||
-      lower.includes("collapse")
-    ) {
-      urgency = "CRITICAL";
-    }
-
-    let location = "Location requires confirmation";
-    const locationMatch = text.match(
-      /(?:at|near|in|on)\s+([A-Za-z0-9 ,.-]{3,50})/i
-    );
-
-    if (locationMatch) {
-      location = locationMatch[1].trim();
-    }
-
-    let people = "Number of people at risk requires confirmation";
-    const peopleMatch = text.match(/(\d+)\s+(?:people|persons|people are|victims)/i);
-
-    if (peopleMatch) {
-      people = `${peopleMatch[1]} people potentially at risk`;
-    }
-
-    return {
-      incident_type: incidentType,
-      location,
-      people_at_risk: people,
-      urgency,
-      potential_hazards:
-        "Potential hazards identified from the report. Verify conditions before deployment.",
-      missing_information:
-        "Exact location, confirmed number of affected people, current scene conditions and available access routes.",
-      response_brief:
-        "Prioritize incident verification, establish the exact location, assess immediate hazards and coordinate appropriate emergency resources."
-    };
-  };
-
-  const analyzeIncident = async () => {
+  const analyzeIncident = () => {
     if (!report.trim()) return;
 
     setLoading(true);
-    setError("");
     setResult(null);
 
-    // Try real backend only if an API URL exists.
-    if (API_URL) {
-      try {
-        const response = await fetch(`${API_URL}/analyze`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            report: report.trim()
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error("Backend analysis failed");
-        }
-
-        const data = await response.json();
-
-        setResult(data.incident || data);
-        setLoading(false);
-        return;
-      } catch (err) {
-        console.log("Backend unavailable, using local intelligence fallback.");
-      }
-    }
-
-    // Demo/local intelligence fallback.
     setTimeout(() => {
-      setResult(generateDemoResult(report));
+      const text = report.toLowerCase();
+
+      let type = "Emergency Incident";
+
+      if (text.includes("fire") || text.includes("smoke")) {
+        type = "Fire Emergency";
+      } else if (text.includes("flood")) {
+        type = "Flood Emergency";
+      } else if (
+        text.includes("accident") ||
+        text.includes("crash")
+      ) {
+        type = "Road Accident";
+      } else if (
+        text.includes("medical") ||
+        text.includes("injured")
+      ) {
+        type = "Medical Emergency";
+      }
+
+      setResult({
+        incident_type: type,
+        location: "Location requires confirmation",
+        people_at_risk: "People potentially at risk",
+        urgency:
+          text.includes("fire") ||
+          text.includes("trapped") ||
+          text.includes("collapse")
+            ? "CRITICAL"
+            : "HIGH",
+        potential_hazards:
+          "Potential scene hazards identified. Verify conditions before response.",
+        missing_information:
+          "Exact location, number of affected people and current scene conditions.",
+        response_brief:
+          "Verify the incident, confirm the location, assess immediate hazards and coordinate appropriate emergency resources."
+      });
+
       setLoading(false);
-    }, 700);
+    }, 600);
   };
 
   return (
     <div className="app">
 
-      {/* HEADER */}
       <header className="header">
         <div className="brand">
           <div className="shield">✚</div>
@@ -143,7 +74,6 @@ function App() {
         </div>
       </header>
 
-      {/* MAIN */}
       <main className="main">
 
         <div className="ai-icon">♧</div>
@@ -161,10 +91,8 @@ function App() {
           incident intelligence in seconds.
         </p>
 
-        {/* CARDS */}
         <section className="cards">
 
-          {/* INCIDENT REPORT */}
           <div className="card">
 
             <div className="card-header">
@@ -204,7 +132,6 @@ function App() {
 
           </div>
 
-          {/* RESPONSE INTELLIGENCE */}
           <div className="card">
 
             <div className="card-header">
@@ -225,7 +152,7 @@ function App() {
 
             <div className="divider"></div>
 
-            {!result && !error && (
+            {!result && (
               <div className="waiting">
 
                 <div className="brain">♧</div>
@@ -236,18 +163,6 @@ function App() {
                   Submit an emergency report to generate response
                   intelligence.
                 </p>
-
-              </div>
-            )}
-
-            {error && (
-              <div className="error-box">
-
-                <div className="error-icon">!</div>
-
-                <h3>Connection Error</h3>
-
-                <p>{error}</p>
 
               </div>
             )}
@@ -263,82 +178,59 @@ function App() {
 
                   <div className="result-item">
                     <span className="result-icon fire">♨</span>
-
                     <div>
                       <label>INCIDENT TYPE</label>
-                      <strong>
-                        {result.incident_type || "Not specified"}
-                      </strong>
+                      <strong>{result.incident_type}</strong>
                     </div>
                   </div>
 
                   <div className="result-item">
                     <span className="result-icon location">⌖</span>
-
                     <div>
                       <label>LOCATION</label>
-                      <strong>
-                        {result.location || "Not specified"}
-                      </strong>
+                      <strong>{result.location}</strong>
                     </div>
                   </div>
 
                   <div className="result-item">
                     <span className="result-icon people">♟</span>
-
                     <div>
                       <label>PEOPLE AT RISK</label>
-                      <strong>
-                        {result.people_at_risk || "Not specified"}
-                      </strong>
+                      <strong>{result.people_at_risk}</strong>
                     </div>
                   </div>
 
                   <div className="result-item">
                     <span className="result-icon urgency">△</span>
-
                     <div>
                       <label>URGENCY</label>
-                      <strong>
-                        {result.urgency || "Not specified"}
-                      </strong>
+                      <strong>{result.urgency}</strong>
                     </div>
                   </div>
 
                   <div className="result-item full">
                     <span className="result-icon hazard">△</span>
-
                     <div>
                       <label>POTENTIAL HAZARDS</label>
-                      <strong>
-                        {result.potential_hazards || "Not specified"}
-                      </strong>
+                      <strong>{result.potential_hazards}</strong>
                     </div>
                   </div>
 
                   <div className="result-item full">
                     <span className="result-icon info">ⓘ</span>
-
                     <div>
                       <label>MISSING INFORMATION</label>
-                      <strong>
-                        {result.missing_information || "Not specified"}
-                      </strong>
+                      <strong>{result.missing_information}</strong>
                     </div>
                   </div>
 
                   <div className="response-brief">
-
                     <span>▤</span>
 
                     <div>
                       <label>RESPONSE BRIEF</label>
-
-                      <p>
-                        {result.response_brief || "Not specified"}
-                      </p>
+                      <p>{result.response_brief}</p>
                     </div>
-
                   </div>
 
                 </div>
@@ -349,7 +241,6 @@ function App() {
 
         </section>
 
-        {/* PIPELINE */}
         <section className="pipeline-section">
 
           <div className="pipeline-title">
@@ -360,70 +251,46 @@ function App() {
 
             <div className="pipeline-card">
               <div className="pipeline-icon">◎</div>
-
               <div>
                 <h3>Classify</h3>
-                <p>
-                  Identify the incident type from unstructured reports.
-                </p>
+                <p>Identify the incident type from unstructured reports.</p>
               </div>
             </div>
 
             <div className="pipeline-card">
               <div className="pipeline-icon">⌖</div>
-
               <div>
                 <h3>Extract</h3>
-                <p>
-                  Pull locations, hazards, people at risk and critical
-                  details.
-                </p>
+                <p>Pull locations, hazards, people at risk and critical details.</p>
               </div>
             </div>
 
             <div className="pipeline-card">
-
-              <div className="pipeline-icon yellow">
-                ⚡
-              </div>
-
+              <div className="pipeline-icon yellow">⚡</div>
               <div>
                 <h3>Prioritize</h3>
-                <p>
-                  Generate an AI-assisted urgency indicator from
-                  available information.
-                </p>
+                <p>Generate an AI-assisted urgency indicator.</p>
               </div>
-
             </div>
 
             <div className="pipeline-card">
-
-              <div className="pipeline-icon purple">
-                ✦
-              </div>
-
+              <div className="pipeline-icon purple">✦</div>
               <div>
                 <h3>Summarize</h3>
-                <p>
-                  Convert complex reports into concise response
-                  intelligence.
-                </p>
+                <p>Convert complex reports into concise response intelligence.</p>
               </div>
-
             </div>
 
           </div>
+
         </section>
 
-        {/* DECISION SUPPORT */}
         <section className="decision">
 
           <div className="decision-icon">✚</div>
 
           <div>
             <h3>Decision-support system</h3>
-
             <p>
               ResQIntel AI assists authorized responders with information
               processing. Final emergency response decisions remain with
@@ -435,17 +302,14 @@ function App() {
 
       </main>
 
-      {/* FOOTER */}
       <footer>
-
         <div>
           <strong>RESQINTEL AI</strong>
-          <span>|</span>
+          <span> | </span>
           Emergency Response Intelligence
         </div>
 
         <strong>CodeNova</strong>
-
       </footer>
 
     </div>
